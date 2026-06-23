@@ -32,44 +32,39 @@ def metadata():
 @app.post("/v1/context")
 def context(payload: dict):
 
-    scope = payload["scope"]
+    scope = payload.get("scope")
+    context_id = payload.get("context_id")
 
-    contexts[scope][payload["context_id"]] = payload
+    contexts[scope][context_id] = payload
 
-    return {
-        "accepted": True
-    }
+    return {"accepted": True}
 
 
 @app.post("/v1/tick")
 def tick(payload: dict):
 
-    merchant_id = payload.get("merchant_id")
+    trigger_ids = payload.get("available_triggers", [])
 
-    merchant = contexts["merchant"].get(merchant_id)
+    actions = []
 
-    if not merchant:
-        return {"actions": []}
+    for trigger_id in trigger_ids:
 
-    category_slug = merchant.get("payload", {}).get("category_slug")
+        trigger = contexts["trigger"].get(trigger_id)
 
-    if not category_slug:
-        return {"actions": []}
+        if not trigger:
+            continue
 
-    category = contexts["category"].get(category_slug)
+        actions.append({
+            "message": f"Opportunity identified for {trigger_id}",
+            "cta": "Learn More",
+            "send_as": "vera",
+            "suppression_key": trigger_id,
+            "rationale": "Trigger based outreach"
+        })
 
-    if not category:
-        return {"actions": []}
-
-    trigger = payload.get("trigger", {})
-
-    result = compose_message(
-        category.get("payload", {}),
-        merchant.get("payload", {}),
-        trigger
-    )
-
-    return {"actions": [result]}
+    return {
+        "actions": actions
+    }
 
 @app.get("/v1/debug")
 def debug():
