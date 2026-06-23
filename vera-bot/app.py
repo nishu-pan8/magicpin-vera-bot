@@ -43,28 +43,40 @@ def context(payload: dict):
 @app.post("/v1/tick")
 def tick(payload: dict):
 
-    trigger_ids = payload.get("available_triggers", [])
+    merchant_id = payload.get("merchant_id")
+
+    merchant = contexts["merchant"].get(merchant_id)
+
+    if not merchant:
+        return {"actions": []}
+
+    category_slug = merchant["payload"]["category_slug"]
+
+    category = contexts["category"].get(category_slug)
+
+    if not category:
+        return {"actions": []}
+
+    triggers = payload.get("available_triggers", [])
 
     actions = []
 
-    for trigger_id in trigger_ids:
+    for trigger_id in triggers:
 
-        trigger = contexts["trigger"].get(trigger_id)
+        trigger_obj = contexts["trigger"].get(trigger_id)
 
-        if not trigger:
+        if not trigger_obj:
             continue
 
-        actions.append({
-            "message": f"Opportunity identified for {trigger_id}",
-            "cta": "Learn More",
-            "send_as": "vera",
-            "suppression_key": trigger_id,
-            "rationale": "Trigger based outreach"
-        })
+        result = compose_message(
+            category["payload"],
+            merchant["payload"],
+            trigger_obj["payload"]
+        )
 
-    return {
-        "actions": actions
-    }
+        actions.append(result)
+
+    return {"actions": actions}
 
 @app.get("/v1/debug")
 def debug():
