@@ -44,25 +44,32 @@ def context(payload: dict):
 @app.post("/v1/tick")
 def tick(payload: dict):
 
-    merchant_id = payload["merchant_id"]
+    merchant_id = payload.get("merchant_id")
 
     merchant = contexts["merchant"].get(merchant_id)
 
-    category_slug = merchant["payload"]["category_slug"]
+    if not merchant:
+        return {"actions": []}
+
+    category_slug = merchant.get("payload", {}).get("category_slug")
+
+    if not category_slug:
+        return {"actions": []}
 
     category = contexts["category"].get(category_slug)
 
-    trigger = payload["trigger"]
+    if not category:
+        return {"actions": []}
+
+    trigger = payload.get("trigger", {})
 
     result = compose_message(
-        category["payload"],
-        merchant["payload"],
+        category.get("payload", {}),
+        merchant.get("payload", {}),
         trigger
     )
 
-    return {
-        "actions": [result]
-    }
+    return {"actions": [result]}
 
 
 @app.post("/v1/reply")
