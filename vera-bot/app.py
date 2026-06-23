@@ -71,6 +71,9 @@ def tick(payload: dict):
 
     return {"actions": [result]}
 
+@app.get("/v1/debug")
+def debug():
+    return contexts
 
 @app.post("/v1/reply")
 def reply(payload: dict):
