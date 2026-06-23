@@ -43,40 +43,20 @@ def context(payload: dict):
 @app.post("/v1/tick")
 def tick(payload: dict):
 
-    merchant_id = payload.get("merchant_id")
+    print("========== TICK RECEIVED ==========")
+    print(payload)
 
-    merchant = contexts["merchant"].get(merchant_id)
-
-    if not merchant:
-        return {"actions": []}
-
-    category_slug = merchant["payload"]["category_slug"]
-
-    category = contexts["category"].get(category_slug)
-
-    if not category:
-        return {"actions": []}
-
-    triggers = payload.get("available_triggers", [])
-
-    actions = []
-
-    for trigger_id in triggers:
-
-        trigger_obj = contexts["trigger"].get(trigger_id)
-
-        if not trigger_obj:
-            continue
-
-        result = compose_message(
-            category["payload"],
-            merchant["payload"],
-            trigger_obj["payload"]
-        )
-
-        actions.append(result)
-
-    return {"actions": actions}
+    return {
+        "actions": [
+            {
+                "message": "Debug action",
+                "cta": "View",
+                "send_as": "vera",
+                "suppression_key": "debug",
+                "rationale": "debug"
+            }
+        ]
+    }
 
 @app.get("/v1/debug")
 def debug():
