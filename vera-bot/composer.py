@@ -22,14 +22,15 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
 
     if kind == "research_digest":
         high_risk = agg.get("high_risk_adult_count", 0)
+
         body = (
-            f"Dr. {owner}, JIDA just published a multi-center Indian trial (n=2,100): "
-            f"3-month fluoride varnish recalls cut caries recurrence by 38% in high-risk adults vs 6-month. "
-            f"You have {high_risk} high-risk adult patients on record — switching their recall intervals "
-            f"could meaningfully change outcomes. Clinics that acted on this early are already seeing fewer emergency walk-ins. "
-            f"Worth reassessing? I can flag the relevant patient segment."
+            f"Dr. {owner}, a recent dental research update suggests more frequent recall visits may benefit high-risk adults. "
+            f"You currently have {high_risk} high-risk adult patients on record. "
+            f"This may be a good opportunity to review your recall protocol and identify patients who may benefit from earlier follow-up. "
+            f"I've already prepared the patient segment for review."
         )
-        return {"body": body, "cta": "Flag patients"}
+
+        return {"body": body, "cta": "Review patients"}
 
     if kind == "regulation_change":
         deadline = tpayload.get("deadline_iso", "2026-12-15")[:10]
@@ -133,8 +134,9 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
         body = (
             f"{owner}, a regular patient's {', '.join(molecules)} runs out ~{stock_out}. "
             f"{delivery_note.capitalize()} — I can send them a refill reminder on {merchant_name}'s behalf right now. "
-            f"Pharmacies with proactive refill reminders retain chronic patients at 88% vs 27% for walk-in-only. "
-            f"Should I send it?"
+            f"Proactive refill reminders help maintain continuity of care for chronic patients. "
+            f"I already have a reminder ready to send. "
+            f"Send it now?"
         )
         return {"body": body, "cta": "Send reminder"}
 
@@ -155,7 +157,7 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
             f"{owner}, {match} is tonight at Arun Jaitley Stadium — {locality} fans will be ordering in. "
             f"Your BOGO pizza offer is live and perfectly timed. "
             f"Best window: push a WhatsApp status 90 mins before match (around 6pm). "
-            f"Restaurants that do this on weeknight matches see +18% covers vs baseline. "
+            f"Match nights often drive higher food ordering activity than a typical weekday."
             f"Want a ready-to-post caption right now?"
         )
         return {"body": body, "cta": "Get caption"}
@@ -176,13 +178,14 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
         milestone = tpayload.get("milestone_value", 150)
         current = tpayload.get("value_now", 0)
         gap = milestone - current
+
         body = (
-            f"{owner}, {merchant_name} is just {gap} reviews away from {milestone} — "
-            f"hitting this boosts your ranking in {locality} search results. "
-            f"A quick post to your last 20 happy customers typically gets 3-5 reviews within 48hrs. "
-            f"Want me to draft the message now?"
+            f"{owner}, {merchant_name} is only {gap} reviews away from reaching {milestone}. "
+            f"You're very close to an important credibility milestone for customers searching in {locality}. "
+            f"I've drafted a review request message that can be sent to recent happy customers."
         )
-        return {"body": body, "cta": "Draft now"}
+
+        return {"body": body, "cta": "Open draft"}
 
     if kind == "festival_upcoming":
         festival = tpayload.get("festival", "upcoming festival")
@@ -217,7 +220,7 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
             f"{owner}, a member who trained {months} months at {merchant_name} focused on {focus} "
             f"hasn't visited in {days} days. "
             f"At this stage (57 days), a personal check-in recovers ~30% of lapsed members — "
-            f"waiting past 90 days drops that to under 10%. "
+            f"Members are generally easier to re-engage before long periods of inactivity."
             f"Want me to draft a message from you to them right now?"
         )
         return {"body": body, "cta": "Draft winback"}
@@ -229,53 +232,46 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
         body = (
             f"{owner}, {merchant_name}'s {metric} are up {delta_pct}% this week — "
             f"driven by {driver}. High interest windows are short: "
-            f"converting this momentum with a time-limited offer typically yields 2-3x normal sign-ups. "
+            f"Now is a good time to convert increased interest into memberships while attention is high."
             f"Want me to push a 48hr offer while this is live?"
         )
         return {"body": body, "cta": "Push offer"}
 
     if kind == "dormant_with_vera":
         days = tpayload.get("days_since_last_merchant_message", "?")
-        last_topic = tpayload.get("last_topic", "your subscription").replace("_", " ")
+        last_topic = tpayload.get("last_topic", "your business").replace("_", " ")
+
         body = (
-            f"{owner}, it's been {days} days since we spoke about {last_topic}. "
-            f"{merchant_name} is still live and pulling {views} views/month — "
-            f"there's untapped potential sitting there. "
-            f"Anything I can help move forward this week? Takes 2 mins to get something live."
+            f"{owner}, it's been {days} days since we last discussed {last_topic}. "
+            f"{merchant_name} is still receiving customer attention, and I found a new opportunity worth reviewing. "
+            f"I already have a recommendation prepared based on your recent activity."
         )
-        return {"body": body, "cta": "Let's go"}
+
+        return {"body": body, "cta": "View recommendation"}
 
     if kind == "cde_opportunity":
         credits = tpayload.get("credits", 0)
+
         body = (
-            f"Dr. {owner}, there's an upcoming IDA webinar offering "
-            f"{credits} CDE credits. "
-            f"The session focuses on practical adoption of digital workflows and modern patient communication. "
-            f"It is a simple way to earn credits while staying current with emerging practice trends. "
-            f"Would you like the registration link?"
+            f"Dr. {owner}, an upcoming IDA learning session offers {credits} CDE credits. "
+            f"The topic focuses on practical clinic workflows and patient communication improvements. "
+            f"I already have the registration details ready for you."
         )
-        return {
-        "body": body,
-        "cta": "Get link"
-        }
+
+        return {"body": body, "cta": "View registration"}
 
     if kind == "competitor_opened":
-        competitor = tpayload.get("competitor_name", "a new clinic")
+        competitor = tpayload.get("competitor_name", "a nearby clinic")
         distance = tpayload.get("distance_km", "?")
         offer = tpayload.get("their_offer", "")
 
         body = (
-            f"Dr. {owner}, {competitor} opened {distance}km away and is promoting "
-            f"'{offer}'. Your clinic already has stronger patient trust and reviews. "
-            f"The next few weeks are when nearby patients decide where to try first. "
-            f"A visibility push now can help defend your existing share before they gain traction. "
-            f"Would you like a quick competitor response plan?"
+            f"Dr. {owner}, {competitor} has opened {distance} km away and is promoting '{offer}'. "
+            f"Patients in your area are likely comparing providers during the first few weeks after a new opening. "
+            f"I've prepared a visibility plan focused on retaining nearby patients and highlighting your existing reputation."
         )
 
-        return {
-        "body": body,
-        "cta": "Show plan"
-        }
+        return {"body": body, "cta": "View response plan"}
 
     if kind == "recall_due":
         due_date = tpayload.get("due_date", "")
@@ -332,9 +328,9 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
 
     # Generic fallback
     body = (
-        f"{owner}, {merchant_name} in {locality} has {views} views and {calls} calls this month. "
-        f"I spotted an opportunity to improve your visibility this week — "
-        f"similar merchants who acted on this saw +20% engagement within 7 days. "
-        f"Want a quick summary?"
+        f"{owner}, I found an opportunity for {merchant_name} based on recent activity and customer behavior. "
+        f"I've already prepared a recommendation tailored to your business."
     )
-    return {"body": body, "cta": "Show me"}
+
+    return {"body": body, "cta": "View recommendation"
+}
