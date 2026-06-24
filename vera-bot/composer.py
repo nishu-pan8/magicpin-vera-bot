@@ -190,10 +190,11 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
         projected = int(views * (1 + tpayload.get("estimated_uplift_pct", 0.3)))
         weekly_loss = int(views * 0.3 / 4)
         body = (
-            f"{owner}, {merchant_name}'s Google profile is unverified — "
-            f"costing you ~{weekly_loss} views per week. "
-            f"Verified profiles in {locality} average {uplift}% more visibility ({views} → {projected} views/mo). "
-            f"Takes 5 mins by phone. Want me to walk you through it now?"
+            f"{owner}, the Google profile for {merchant_name} is unverified "
+            f"and costing you ~{weekly_loss} views per week. "
+            f"Verified profiles in {locality} average {uplift}% more visibility "
+            f"({views} views/mo now vs ~{projected} post-verification). "
+            f"Takes 5 mins by phone. Should I walk you through it now?"
         )
         return {"body": body, "cta": "Start verification"}
 
@@ -385,16 +386,19 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
     if kind == "active_planning_intent":
         topic = tpayload.get("intent_topic", "your plan").replace("_", " ")
         last_msg = tpayload.get("merchant_last_message", "")
+        # Sanitize: remove quotes that break downstream JSON parsing
+        last_msg_clean = last_msg.replace('"', "").replace("'", "")[:60]
+    
         if "corporate" in topic or "thali" in topic:
-            draft_preview = "min 20 pax, ₹129/thali, delivery within 3km, weekly billing"
+            draft_preview = "min 20 pax, Rs 129/thali, delivery within 3km, weekly billing"
         elif "kids" in topic or "yoga" in topic:
-            draft_preview = "4-week program, 3x/week, age 7-12, ₹2,499 — summer camp framing"
+            draft_preview = "4-week program, 3x/week, age 7-12, Rs 2499 — summer camp framing"
         else:
             draft_preview = "structured plan with pricing, timeline, and offer"
         body = (
-            f"{owner}, you asked: \"{last_msg[:70]}\" — "
-            f"I've drafted a starter for the {topic}: {draft_preview}. "
-            f"Based on what's working for similar merchants in your city, this has strong conversion potential right now. "
+            f"{owner}, based on your message about {last_msg_clean}, "
+            f"a starter plan for {topic} is ready: {draft_preview}. "
+            f"Similar merchants in your city are seeing strong conversion with this approach right now. "
             f"Should I send the full draft?"
         )
         return {"body": body, "cta": "Send draft"}
