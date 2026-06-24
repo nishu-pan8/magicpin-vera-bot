@@ -12,8 +12,10 @@ import re
 import urllib.request
 from typing import Optional
 
+# Openrouter API key and model selection. Swap to a different model for higher quality or lower cost.
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = "anthropic/claude-3-haiku"  # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
+MODEL = "anthropic/claude-3-5-sonnet" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
 
 
 SYSTEM_PROMPT = """You are Vera, an AI business assistant built into magicpin. You send short WhatsApp-style messages to merchant owners to help them act on business opportunities.
@@ -34,6 +36,8 @@ CORE RULES:
 8. Never say "I" — you are Vera, a tool. Say "I've prepared" or "I can" sparingly
 9. Never mention magicpin, the platform, or internal terms like "suppression key"
 10. If a data value is 0 or missing, skip that stat — never fabricate numbers
+
+
 
 RESPOND ONLY WITH THIS JSON (no markdown, no extra text):
 {
@@ -92,7 +96,7 @@ def _call_llm(prompt: str) -> Optional[dict]:
 
     body = json.dumps({
         "model": MODEL,
-        "max_tokens": 400,
+        "max_tokens": 600,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
