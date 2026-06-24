@@ -40,54 +40,64 @@ def context(payload: dict):
 def tick(payload: dict):
     print("========== TICK RECEIVED ==========")
 
-    # The judge sends a list of trigger ID strings
     available_trigger_ids = payload.get("available_triggers", [])
 
     if not available_trigger_ids:
-        print("[WARN] No triggers in payload")
         return {"actions": []}
 
-    # Look up full trigger objects from stored context
     triggers = []
+
     for tid in available_trigger_ids:
         ctx = contexts["trigger"].get(tid)
-        if ctx:
-            # Trigger object is nested under "payload" key when stored via /v1/context
-            trigger_obj = ctx.get("payload", ctx)
-            triggers.append(trigger_obj)
+
+        if not ctx:
+            continue
+
+        trigger_obj = ctx.get("payload", ctx)
+        triggers.append(trigger_obj)
 
     if not triggers:
-        print("[WARN] None of the trigger IDs found in context store")
         return {"actions": []}
 
-    # Pick highest-urgency trigger
-    best_trigger = max(triggers, key=lambda t: t.get("urgency", 0))
-    merchant_id = best_trigger.get("merchant_id")
+    actions = []
 
-    if not merchant_id:
-        print("[WARN] Trigger has no merchant_id")
-        return {"actions": []}
+    for trigger in triggers:
+        merchant_id = trigger.get("merchant_id")
 
-    print(f"[TICK] trigger={best_trigger.get('id')} kind={best_trigger.get('kind')} merchant={merchant_id}")
+        if not merchant_id:
+            continue
 
-    # Look up merchant and category
-    merchant_ctx = contexts["merchant"].get(merchant_id, {})
-    merchant = merchant_ctx.get("payload", merchant_ctx)
+        merchant_ctx = contexts["merchant"].get(merchant_id, {})
+        merchant = merchant_ctx.get("payload", merchant_ctx)
 
-    category_slug = merchant.get("category_slug", "")
-    category_ctx = contexts["category"].get(category_slug, {})
-    category = category_ctx.get("payload", category_ctx)
+        category_slug = merchant.get("category_slug", "")
+        category_ctx = contexts["category"].get(category_slug, {})
+        category = category_ctx.get("payload", category_ctx)
 
-    action = compose_message(category, merchant, best_trigger)
+        try:
+            action = compose_message(
+                category,
+                merchant,
+                trigger
+            )
 
-    # Add required fields for the judge scorer
-    action["trigger_id"] = best_trigger.get("id", "")
-    action["merchant_id"] = merchant_id
-    action["suppression_key"] = best_trigger.get("suppression_key", best_trigger.get("id", "vera"))
-    action["send_as"] = "vera"
+            action["trigger_id"] = trigger.get("id", "")
+            action["merchant_id"] = merchant_id
+            action["customer_id"] = trigger.get("customer_id")
+            action["suppression_key"] = trigger.get(
+                "suppression_key",
+                trigger.get("id", "vera")
+            )
+            action["send_as"] = "vera"
 
-    print(f"[TICK] Composed: {action.get('body', '')[:80]}")
-    return {"actions": [action]}
+            actions.append(action)
+
+        except Exception as e:
+            print(f"[ERROR] compose_message failed: {e}")
+
+    print(f"[TICK] Returning {len(actions)} actions")
+
+    return {"actions": actions}
 
 
 @app.get("/v1/debug")

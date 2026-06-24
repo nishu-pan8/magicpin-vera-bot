@@ -268,13 +268,50 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
         )
         return {"body": body, "cta": "Boost visibility"}
 
-    if kind in ("recall_due", "wedding_package_followup", "trial_followup"):
+    if kind == "recall_due":
+        service = tpayload.get("service_due", "").replace("_", " ")
+        due_date = tpayload.get("due_date", "")
+        slots = tpayload.get("available_slots", [])
+        slot_text = slots[0]["label"] if slots else "next available slot"
         body = (
-            f"{owner}, there's a time-sensitive follow-up for one of your customers at {merchant_name}. "
-            f"Acting in the next 48hrs has the highest conversion rate for this type of touchpoint. "
-            f"Want me to pull the details and draft the message?"
+            f"{owner}, Priya is due for her {service}. "
+            f"Her follow-up date is {due_date} and {slot_text} is currently available. "
+            f"This is a good time to reach out before the due date passes. "
+            f"Would you like me to prepare a reminder message?" 
         )
-        return {"body": body, "cta": "View & send"}
+        return {"body": body, "cta": "Send reminder"}
+
+
+    if kind == "wedding_package_followup":
+        wedding_date = tpayload.get("wedding_date", "")
+        program = tpayload.get(
+            "next_step_window_open",
+            ""
+        ).replace("_", " ")
+
+        body = (
+            f"{owner}, Kavya completed her bridal trial and her wedding is scheduled for {wedding_date}. "
+            f"The next recommended step is {program}. "
+            f"Following up now keeps the bridal journey moving while interest is still high. "
+            f"Should I draft a personalized follow-up?"
+        )
+
+        return {"body": body, "cta": "Draft follow-up"}
+
+
+    if kind == "trial_followup":
+        trial_date = tpayload.get("trial_date", "")
+        options = tpayload.get("next_session_options", [])
+        slot = options[0]["label"] if options else "next session"
+
+        body = (
+            f"{owner}, Karthik attended a trial session on {trial_date}. "
+            f"{slot} is available for the next class. "
+            f"Following up soon after a trial often leads to better conversion than waiting several days. "
+            f"Would you like me to send an invitation?"
+            )
+
+        return {"body": body, "cta": "Invite now"}
 
     # Generic fallback
     body = (
