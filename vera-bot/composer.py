@@ -247,39 +247,56 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
 
     if kind == "cde_opportunity":
         credits = tpayload.get("credits", 0)
-        fee = tpayload.get("fee", "")
         body = (
-            f"Dr. {owner}, IDA Delhi: Digital Impressions Masterclass on May 2 — "
-            f"{credits} CDE credits, {fee}. Covers Primescan 2, Trios 5, CAD/CAM ROI for solo practices. "
-            f"Clear aligner consultations in metros are up 62% YoY — digital impressions are becoming table stakes. "
-            f"Want the registration link?"
+            f"Dr. {owner}, there's an upcoming IDA webinar offering "
+            f"{credits} CDE credits. "
+            f"The session focuses on practical adoption of digital workflows and modern patient communication. "
+            f"It is a simple way to earn credits while staying current with emerging practice trends. "
+            f"Would you like the registration link?"
         )
-        return {"body": body, "cta": "Get link"}
+        return {
+        "body": body,
+        "cta": "Get link"
+        }
 
     if kind == "competitor_opened":
         competitor = tpayload.get("competitor_name", "a new clinic")
         distance = tpayload.get("distance_km", "?")
-        their_offer = tpayload.get("their_offer", "")
+        offer = tpayload.get("their_offer", "")
+
         body = (
-            f"Dr. {owner}, {competitor} opened {distance}km from {merchant_name} — "
-            f"running '{their_offer}'. Your cleaning is also ₹299 but your reviews are stronger "
-            f"(patients say: \"{merchant.get('review_themes', [{}])[0].get('common_quote', 'great experience')}...\"). "
-            f"A GBP visibility boost this week defends your turf before they build momentum. Should I do it?"
+            f"Dr. {owner}, {competitor} opened {distance}km away and is promoting "
+            f"'{offer}'. Your clinic already has stronger patient trust and reviews. "
+            f"The next few weeks are when nearby patients decide where to try first. "
+            f"A visibility push now can help defend your existing share before they gain traction. "
+            f"Would you like a quick competitor response plan?"
         )
-        return {"body": body, "cta": "Boost visibility"}
+
+        return {
+        "body": body,
+        "cta": "Show plan"
+        }
 
     if kind == "recall_due":
-        service = tpayload.get("service_due", "").replace("_", " ")
         due_date = tpayload.get("due_date", "")
         slots = tpayload.get("available_slots", [])
-        slot_text = slots[0]["label"] if slots else "next available slot"
-        body = (
-            f"{owner}, Priya is due for her {service}. "
-            f"Her follow-up date is {due_date} and {slot_text} is currently available. "
-            f"This is a good time to reach out before the due date passes. "
-            f"Would you like me to prepare a reminder message?" 
+
+        slot_text = ", ".join(
+            slot.get("label", "")
+            for slot in slots[:2]
         )
-        return {"body": body, "cta": "Send reminder"}
+
+        body = (
+            f"Dr. {owner}, Priya is due for her 6-month cleaning on {due_date}. "
+            f"Available slots: {slot_text}. "
+            f"Reaching out before the due date helps maintain continuity of care and improves rebooking rates. "
+            f"Would you like me to prepare a reminder for her now?"
+        )
+
+        return {
+        "body": body,
+        "cta": "Send reminder"
+        }
 
 
     if kind == "wedding_package_followup":
