@@ -1,9 +1,7 @@
 """
-composer_v2.py — LLM-powered message composer for magicpin Vera bot
-Replaces static compose_message() with an OpenRouter API call.
-
-Drop-in replacement: same function signature, returns same {body, cta} dict.
-Set OPENROUTER_API_KEY in your environment (same key you use in judge_simulator.py).
+composer.py — LLM-powered message composer for magicpin Vera bot
+Uses Google Gemini API to generate WhatsApp-style merchant messages.
+Falls back to a static template composer if Gemini is unavailable.
 """
 
 import os
@@ -11,39 +9,34 @@ import json
 import re
 import urllib.request
 import urllib.error
-from typing import Optional
-
-# Openrouter
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-MODEL = "gemini-2.5-flash" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
+MODEL = "gemini-2.5-flash"
 
+SYSTEM_PROMPT = """You are Vera, an AI business assistant built into magicpin. You send short WhatsApp-style messages to merchant owners to help them act on business opportunities.
 
-SYSTEM_PROMPT = """
-Merchant:
-- Name:
-- Category:
-- Location:
-- Performance:
-- Offers:
-- Signals:
+CORE RULES:
+1. ALWAYS use the owner's first name at the start (use "Dr." prefix for dentists)
+2. ALWAYS include at least 2-3 specific numbers from the provided data (percentages, counts, dates, amounts)
+3. ALWAYS end with ONE clear, low-friction question (not a statement)
+4. Message body: 2-4 sentences max. No fluff, no pleasantries like "I hope this finds you well"
+5. Match the category voice:
+   - dentists: clinical peer tone, use "Dr.", reference patients/clinical outcomes
+   - salons: warm + practical, reference bookings/walk-ins
+   - restaurants: operator tone, reference covers/orders/timing
+   - gyms: coaching tone, reference members/sessions/churn
+   - pharmacies: trustworthy + precise, reference Rx/patients/stock
+6. Create URGENCY: reference a specific loss (views/calls/patients/revenue) happening TODAY if not acted on
+7. CTA must be 2-3 words, action verb first (e.g. "Fix now", "Send reminder", "Get checklist")
+8. Never say "I" — you are Vera, a tool. Say "I've prepared" or "I can" sparingly
+9. Never mention magicpin, the platform, or internal terms like "suppression key"
+10. If a data value is 0 or missing, skip that stat — never fabricate numbers
 
-Trigger:
-- Kind:
-- Payload:
-
-Task:
-Write one WhatsApp message.
-
-Structure:
-1. Mention the current situation.
-2. Explain why it matters.
-3. Suggest the next action.
-4. Finish with a question.
-
-Do not invent any numbers.
-Use only the information above.
-"""
+RESPOND ONLY WITH THIS JSON (no markdown, no extra text):
+{
+  "body": "<message body>",
+  "cta": "<2-3 word CTA>"
+}"""
 
 
 def _build_prompt(category: dict, merchant: dict, trigger: dict) -> str:
@@ -62,6 +55,10 @@ def _build_prompt(category: dict, merchant: dict, trigger: dict) -> str:
     payload = trigger.get("payload", {})
     urgency = trigger.get("urgency", "medium")
 
+    delta = perf.get("delta_7d", {})
+    calls_pct = delta.get("calls_pct", 0)
+    views_pct = delta.get("views_pct", 0)
+
     prompt = f"""COMPOSE A VERA MESSAGE for this merchant opportunity.
 
 === MERCHANT ===
@@ -72,7 +69,7 @@ Category: {category_slug}
 Voice tone: {voice.get("tone", "professional")}
 Taboo words (never use): {voice.get("vocab_taboo", [])}
 Performance: {perf.get("views", 0)} views/mo, {perf.get("calls", 0)} calls/mo, {perf.get("ctr", 0)} CTR
-7-day delta: calls {perf.get("delta_7d", {}).get("calls_pct", 0):+.0%}, views {perf.get("delta_7d", {}).get("views_pct", 0):+.0%}
+7-day delta: calls {calls_pct:+.0%}, views {views_pct:+.0%}
 Active offers: {[o.get("title") for o in offers] or "none"}
 Signals: {signals}
 Customer aggregate: {json.dumps(agg)}
@@ -91,18 +88,23 @@ The owner should feel compelled to tap the CTA immediately."""
 
 
 def _call_llm(prompt: str):
-
     if not GEMINI_API_KEY:
         return None
 
-    full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}\n\nRespond ONLY with valid JSON: {{\"body\": \"...\", \"cta\": \"...\"}}"
+    full_prompt = (
+        f"{SYSTEM_PROMPT}\n\n{prompt}\n\n"
+        f'Respond ONLY with valid JSON: {{"body": "...", "cta": "..."}}'
+    )
 
     payload = {
         "contents": [{"parts": [{"text": full_prompt}]}],
         "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
     }
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={GEMINI_API_KEY}"
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{MODEL}:generateContent?key={GEMINI_API_KEY}"
+    )
 
     req = urllib.request.Request(
         url,
@@ -115,12 +117,7 @@ def _call_llm(prompt: str):
         data = json.loads(resp.read().decode())
         text = data["candidates"][0]["content"]["parts"][0]["text"]
 
-        text = re.sub(
-            r"^```(?:json)?|```$",
-            "",
-            text,
-            flags=re.MULTILINE
-        ).strip()
+        text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.MULTILINE).strip()
 
         result = json.loads(text)
 
@@ -135,8 +132,8 @@ def _call_llm(prompt: str):
 
 def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
     """
-    Kept as a safety net. Used when OpenRouter is unavailable.
-    Always includes real numbers and a question-form CTA for better scores.
+    Safety net used when Gemini is unavailable or returns bad output.
+    Always includes real numbers and a question-form CTA.
     """
     owner = merchant.get("identity", {}).get("owner_first_name", "there")
     merchant_name = merchant.get("identity", {}).get("name", "your business")
@@ -394,9 +391,8 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
     if kind == "active_planning_intent":
         topic = tpayload.get("intent_topic", "your plan").replace("_", " ")
         last_msg = tpayload.get("merchant_last_message", "")
-        # Sanitize: remove quotes that break downstream JSON parsing
         last_msg_clean = last_msg.replace('"', "").replace("'", "")[:60]
-    
+
         if "corporate" in topic or "thali" in topic:
             draft_preview = "min 20 pax, Rs 129/thali, delivery within 3km, weekly billing"
         elif "kids" in topic or "yoga" in topic:
@@ -411,7 +407,6 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
         )
         return {"body": body, "cta": "Send draft"}
 
-    # Generic fallback — always include real numbers
     body = (
         f"{owner}, {merchant_name} had {views} views and {calls} calls this month in {locality}. "
         f"I've spotted an opportunity that could improve those numbers this week. "
@@ -421,6 +416,9 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
 
 
 def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
+    """
+    Main entry point. Tries Gemini LLM first, falls back to static composer.
+    """
     if GEMINI_API_KEY:
         prompt = _build_prompt(category, merchant, trigger)
         result = _call_llm(prompt)
