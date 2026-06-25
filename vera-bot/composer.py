@@ -15,8 +15,8 @@ from typing import Optional
 
 # Openrouter
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-MODEL = "llama-3.3-70b-versatile" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+MODEL = "gemini-2.5-flash" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
 
 
 SYSTEM_PROMPT = """
@@ -92,41 +92,28 @@ The owner should feel compelled to tap the CTA immediately."""
 
 def _call_llm(prompt: str):
 
-    if not GROQ_API_KEY:
+    if not GEMINI_API_KEY:
         return None
 
+    full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}\n\nRespond ONLY with valid JSON: {{\"body\": \"...\", \"cta\": \"...\"}}"
+
     payload = {
-        "model": MODEL,
-        "temperature": 0.2,
-        "max_tokens": 600,
-        "messages": [
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+        "contents": [{"parts": [{"text": full_prompt}]}],
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
     }
 
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={GEMINI_API_KEY}"
+
     req = urllib.request.Request(
-        "https://api.groq.com/openai/v1/chat/completions",
+        url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
+        headers={"Content-Type": "application/json"}
     )
 
     try:
-
         resp = urllib.request.urlopen(req, timeout=25)
-
         data = json.loads(resp.read().decode())
-
-        text = data["choices"][0]["message"]["content"]
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
 
         text = re.sub(
             r"^```(?:json)?|```$",
@@ -141,7 +128,7 @@ def _call_llm(prompt: str):
             return result
 
     except Exception as e:
-        print("[Groq]", e)
+        print("[Gemini]", e)
 
     return None
 
@@ -434,15 +421,11 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
 
 
 def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
-    """
-    Main entry point. Tries OpenRouter LLM first, falls back to static composer.
-    Same signature as original compose_message().
-    """
-    if GROQ_API_KEY:
+    if GEMINI_API_KEY:
         prompt = _build_prompt(category, merchant, trigger)
         result = _call_llm(prompt)
         if result:
             return result
-        print("[WARN] OpenRouter API failed, using static fallback")
+        print("[WARN] Gemini API failed, using static fallback")
 
     return _static_fallback(category, merchant, trigger)
