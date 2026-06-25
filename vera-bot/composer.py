@@ -10,12 +10,13 @@ import os
 import json
 import re
 import urllib.request
+import urllib.error
 from typing import Optional
 
 # Openrouter
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-MODEL = "anthropic/claude-3-5-sonnet" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+MODEL = "llama-3.3-70b-versatile" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
 
 
 SYSTEM_PROMPT = """You are Vera, an AI business assistant built into magicpin. You send short WhatsApp-style messages to merchant owners to help them act on business opportunities.
@@ -90,42 +91,58 @@ The owner should feel compelled to tap the CTA immediately."""
     return prompt
 
 
-def _call_llm(prompt: str) -> Optional[dict]:
-    if not OPENROUTER_API_KEY:
+def _call_llm(prompt: str):
+
+    if not GROQ_API_KEY:
         return None
 
-    body = json.dumps({
+    payload = {
         "model": MODEL,
+        "temperature": 0.2,
         "max_tokens": 600,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
         ]
-    }).encode("utf-8")
+    }
 
     req = urllib.request.Request(
-        "https://openrouter.ai/api/v1/chat/completions",
-        data=body,
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://magicpin.com"
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
         }
     )
 
     try:
-        resp = urllib.request.urlopen(req, timeout=20)
-        data = json.loads(resp.read().decode("utf-8"))
-        text = data["choices"][0]["message"]["content"].strip()
 
-        # Strip markdown fences if present
-        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE).strip()
+        resp = urllib.request.urlopen(req, timeout=25)
 
-        parsed = json.loads(text)
-        if "body" in parsed and "cta" in parsed:
-            return parsed
+        data = json.loads(resp.read().decode())
+
+        text = data["choices"][0]["message"]["content"]
+
+        text = re.sub(
+            r"^```(?:json)?|```$",
+            "",
+            text,
+            flags=re.MULTILINE
+        ).strip()
+
+        result = json.loads(text)
+
+        if "body" in result and "cta" in result:
+            return result
+
     except Exception as e:
-        print(f"[OpenRouter API error] {e}")
+        print("[Groq]", e)
 
     return None
 
@@ -249,6 +266,7 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
         theme = tpayload.get("theme", "an issue").replace("_", " ")
         count = tpayload.get("occurrences_30d", 0)
         quote = tpayload.get("common_quote", "")
+        quote_clean = quote[:60].replace('"', '').replace("'", "")
         body = (
             f"{owner}, {count} reviews at {merchant_name} this month mention {theme}. "
             f"Customers are describing it as: {quote_clean}. "
@@ -421,7 +439,7 @@ def compose_message(category: dict, merchant: dict, trigger: dict) -> dict:
     Main entry point. Tries OpenRouter LLM first, falls back to static composer.
     Same signature as original compose_message().
     """
-    if OPENROUTER_API_KEY:
+    if GROQ_API_KEY:
         prompt = _build_prompt(category, merchant, trigger)
         result = _call_llm(prompt)
         if result:
