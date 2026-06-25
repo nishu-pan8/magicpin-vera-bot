@@ -249,6 +249,7 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
         theme = tpayload.get("theme", "an issue").replace("_", " ")
         count = tpayload.get("occurrences_30d", 0)
         quote = tpayload.get("common_quote", "")
+        quote_clean = quote[:60].replace('"', '').replace("'", "")
         body = (
             f"{owner}, {count} reviews at {merchant_name} this month mention {theme}. "
             f"Customers are describing it as: {quote_clean}. "
