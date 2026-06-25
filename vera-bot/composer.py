@@ -12,7 +12,7 @@ import re
 import urllib.request
 from typing import Optional
 
-# Openrouter API key and model selection. Swap to a different model for higher quality or lower cost.
+# Openrouter
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 MODEL = "anthropic/claude-3-5-sonnet" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
@@ -249,7 +249,6 @@ def _static_fallback(category: dict, merchant: dict, trigger: dict) -> dict:
         theme = tpayload.get("theme", "an issue").replace("_", " ")
         count = tpayload.get("occurrences_30d", 0)
         quote = tpayload.get("common_quote", "")
-        quote_clean = quote[:60].replace('"', '').replace("'", "")
         body = (
             f"{owner}, {count} reviews at {merchant_name} this month mention {theme}. "
             f"Customers are describing it as: {quote_clean}. "
