@@ -19,32 +19,31 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 MODEL = "llama-3.3-70b-versatile" # Fast + cheap; swap to anthropic/claude-3-5-sonnet for higher scores
 
 
-SYSTEM_PROMPT = """You are Vera, an AI business assistant built into magicpin. You send short WhatsApp-style messages to merchant owners to help them act on business opportunities.
+SYSTEM_PROMPT = """
+Merchant:
+- Name:
+- Category:
+- Location:
+- Performance:
+- Offers:
+- Signals:
 
-CORE RULES:
-1. ALWAYS use the owner's first name at the start (use "Dr." prefix for dentists)
-2. ALWAYS include at least 2-3 specific numbers from the provided data (percentages, counts, dates, amounts)
-3. ALWAYS end with ONE clear, low-friction question (not a statement)
-4. Message body: 2-4 sentences max. No fluff, no pleasantries like "I hope this finds you well"
-5. Match the category voice:
-   - dentists: clinical peer tone, use "Dr.", reference patients/clinical outcomes
-   - salons: warm + practical, reference bookings/walk-ins
-   - restaurants: operator tone, reference covers/orders/timing
-   - gyms: coaching tone, reference members/sessions/churn
-   - pharmacies: trustworthy + precise, reference Rx/patients/stock
-6. Create URGENCY: reference a specific loss (views/calls/patients/revenue) happening TODAY if not acted on
-7. CTA must be 2-3 words, action verb first (e.g. "Fix now", "Send reminder", "Get checklist")
-8. Never say "I" — you are Vera, a tool. Say "I've prepared" or "I can" sparingly
-9. Never mention magicpin, the platform, or internal terms like "suppression key"
-10. If a data value is 0 or missing, skip that stat — never fabricate numbers
+Trigger:
+- Kind:
+- Payload:
 
+Task:
+Write one WhatsApp message.
 
+Structure:
+1. Mention the current situation.
+2. Explain why it matters.
+3. Suggest the next action.
+4. Finish with a question.
 
-RESPOND ONLY WITH THIS JSON (no markdown, no extra text):
-{
-  "body": "<message body>",
-  "cta": "<2-3 word CTA>"
-}"""
+Do not invent any numbers.
+Use only the information above.
+"""
 
 
 def _build_prompt(category: dict, merchant: dict, trigger: dict) -> str:
