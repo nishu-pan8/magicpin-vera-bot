@@ -26,18 +26,15 @@ Author: magicpin AI Challenge Team
 BOT_URL = "https://magicpin-vera-bot-p96s.onrender.com"
 
 # Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
-#new key 
-
-
-LLM_PROVIDER = "deepseek"
+LLM_PROVIDER = "openrouter"
 
 # Your API key (paste your key here)
-LLM_API_KEY = os.getenv("LLM_API_KEY", "") # <-- PUT YOUR API KEY HERE
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # <-- PUT YOUR API KEY HERE
 
 ## New code here
 
 # Model to use (leave empty for default, or specify like "gpt-4o", "claude-3-5-sonnet-20241022", etc.)
-LLM_MODEL = "deepseek-chat" # <-- Optional: specify model or leave empty for default
+LLM_MODEL = "anthropic/claude-3-haiku" # <-- Optional: specify model or leave empty for default
 
 # For Ollama only: local server URL
 OLLAMA_URL = "http://localhost:11434"
