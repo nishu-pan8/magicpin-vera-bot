@@ -542,13 +542,38 @@ Score each dimension 0-10 with clear reasoning. Be STRICT."""
             return self._fallback_score(action)
 
     def _parse_response(self, response: str, action: Dict) -> ScoreResult:
-        """Parse LLM JSON response."""
+    #Parse LLM JSON response, with regex-based recovery if JSON is malformed.
+
         match = re.search(r'\{[\s\S]*\}', response)
         if not match:
             return self._fallback_score(action)
 
+        raw = match.group()
+
         try:
-            data = json.loads(match.group())
+            data = json.loads(raw)
+        except Exception:
+        # Try a light repair: escape stray quotes inside string values
+            try:
+                repaired = re.sub(r'(?<!\\)"(?=[^:,}\]]*")', '\\"', raw)
+                data = json.loads(repaired)
+            except Exception:
+            # Last resort: pull each numeric field out individually via regex
+            # so we don't lose the whole score over one bad reason string
+                data = {}
+                for key in ["specificity", "category_fit", "merchant_fit",
+                        "decision_quality", "engagement_compulsion"]:
+                    m = re.search(rf'"{key}"\s*:\s*(\d+)', raw)
+                    if m:
+                        data[key] = int(m.group(1))
+                hint_m = re.search(r'"hint"\s*:\s*"([^"]*)"', raw)
+                if hint_m:
+                    data["hint"] = hint_m.group(1)
+
+                if not data:
+                    return self._fallback_score(action)
+
+        try:
             result = ScoreResult(
                 specificity=min(10, max(0, int(data.get("specificity", 5)))),
                 specificity_reason=data.get("specificity_reason", ""),
@@ -563,6 +588,7 @@ Score each dimension 0-10 with clear reasoning. Be STRICT."""
                 hint=data.get("hint", "")
             )
             return result
+    
         except Exception as e:
             print_warn(f"Parse error: {e}")
             return self._fallback_score(action)
